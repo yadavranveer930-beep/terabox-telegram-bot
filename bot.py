@@ -20,7 +20,6 @@ threading.Thread(target=run_flask, daemon=True).start()
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
-# Function to create Telegra.ph (Graph.org) Landing Page
 def create_telegraph_page(title, links_list):
     content_html = ""
     for idx, link in enumerate(links_list, 1):
@@ -44,7 +43,7 @@ def create_telegraph_page(title, links_list):
                 "content": [{"tag": "p", "children": [html_content]}],
                 "return_content": False
             },
-            timeout=10
+            timeout=15
         )
         res_data = response.json()
         if res_data.get("ok"):
@@ -56,13 +55,17 @@ def create_telegraph_page(title, links_list):
     return links_list[0] if links_list else ""
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hello! Mujhe TeraBox links bhejo, main Graph.org landing page post bana dunga.")
+    await update.message.reply_text("Hello! Mujhe TeraBox links bhejo, main Graph.org landing page bana dunga.")
 
 async def convert_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
+    # Sabhi URLs ko properly extract karna
     urls = re.findall(r'(https?://[^\s]+)', text)
     
     if urls:
+        # Loading message bhejna taaki user ko pata chale bot kaam kar raha hai
+        sent_msg = await update.message.reply_text("⏳ Generating Graph.org landing page for your links...")
+        
         landing_page = create_telegraph_page("NEW EXCLUSIVE POST", urls)
         
         post_text = (
@@ -79,6 +82,9 @@ async def convert_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = InlineKeyboardMarkup([
             [InlineKeyboardButton("🚀 WATCH / DOWNLOAD NOW 🚀", url=landing_page)]
         ])
+        
+        # Purana loading message delete karke final preview dena
+        await sent_msg.delete()
         
         await update.message.reply_text(
             f"✅ **Graph.org Landing Page Ready!**\n\n"
