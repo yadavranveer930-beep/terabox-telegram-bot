@@ -2,7 +2,7 @@ import os
 import threading
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ChatJoinRequestHandler, filters, ContextTypes
 
 app = Flask(__name__)
 
@@ -21,11 +21,11 @@ TOKEN = os.environ.get("BOT_TOKEN")
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 **Welcome Boss!**\n\n"
-        "Aap official @telegraph bot par jaakar apna page (photos + links) manually bana lijiye.\n\n"
+        "Aap official @telegraph bot par jaakar apna page manually bana lijiye.\n\n"
         "Phir wahan ka link mujhe bhej dijiye. Main usko Graph.org me convert karke aapke Channel ke liye ek Professional Post aur Button bana dunga! 🚀"
     )
 
-# Private Channel Join Request Auto-Approver
+# Private Channel Join Request Auto-Approver (Corrected Handler)
 async def auto_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await update.chat_join_request.approve()
@@ -35,9 +35,7 @@ async def auto_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def generate_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     
-    # Check if user sent a link
     if text.startswith("http://") or text.startswith("https://"):
-        # Auto convert telegra.ph to graph.org
         landing_page = text.replace("telegra.ph", "graph.org")
         
         post_text = (
@@ -68,10 +66,10 @@ async def generate_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == '__main__':
     bot_app = ApplicationBuilder().token(TOKEN).build()
     
-    # Handlers
+    # Correct Handlers
     bot_app.add_handler(CommandHandler("start", start))
     bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, generate_post))
-    bot_app.add_handler(MessageHandler(filters.StatusUpdate.CHAT_JOIN_REQUEST, auto_approve))
+    bot_app.add_handler(ChatJoinRequestHandler(auto_approve))
     
     bot_app.run_polling()
     
