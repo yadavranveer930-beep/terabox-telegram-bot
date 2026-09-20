@@ -1,42 +1,39 @@
 import os
-import re
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
+# Dummy web server to satisfy Render Web Service
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running!")
+
+def run_web_server():
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    server.serve_forever()
+
+# Start HTTP server in a separate background thread
+threading.Thread(target=run_web_server, daemon=True).start()
+
+TOKEN = os.environ.get("BOT_TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 Welcome to TeraBox Link Share Bot!\n\n"
-        "Mujhe koi bhi TeraBox link ya message bhejo, main use post format mein button ke sath ready kar dunga."
-    )
+    await update.message.reply_text("Hello! Mujhe TeraBox link bhejo, main usko converted share link mein badal dunga.")
 
 async def convert_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    urls = re.findall(r'(https?://[^\s]+)', text)
-    
-    if not urls:
-        await update.message.reply_text("Kripya ek valid TeraBox link bhejein.")
-        return
-
-    main_url = urls[0]
-    
-    keyboard = [[InlineKeyboardButton("🎬 Watch / Download Video", url=main_url)]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    caption = f"✨ **Aapki Requested File Ready Hai!** ✨\n\n🔗 [Click Here to Watch]({main_url})\n\n👇 Niche button par click karke dekhein:"
-    
-    await update.message.reply_text(caption, parse_mode="Markdown", reply_markup=reply_markup)
+    if "terabox" in text.lower() or "1024terabox" in text.lower():
+        await update.message.reply_text(f"Here is your link:\n{text}")
+    else:
+        await update.message.reply_text("Kripya valid TeraBox link bhejein.")
 
 if __name__ == '__main__':
-    if not BOT_TOKEN:
-        print("Error: BOT_TOKEN is missing!")
-        exit(1)
-        
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = ApplicationBuilder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, convert_link))
-    
-    print("Bot is starting...")
     app.run_polling()
-  
+    
