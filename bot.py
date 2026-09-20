@@ -1,28 +1,28 @@
 import os
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Dummy web server to satisfy Render Web Service
-class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is running!")
+# Flask Web Server setup (Render port check satisfy karne ke liye)
+app = Flask(__name__)
 
-def run_web_server():
+@app.route('/')
+def home():
+    return "Bot is live and running!"
+
+def run_flask():
     port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
-    server.serve_forever()
+    app.run(host='0.0.0.0', port=port)
 
-# Start HTTP server in a separate background thread
-threading.Thread(target=run_web_server, daemon=True).start()
+# Background thread mein Flask start karein
+threading.Thread(target=run_flask, daemon=True).start()
 
+# Telegram Bot Token
 TOKEN = os.environ.get("BOT_TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hello! Mujhe TeraBox link bhejo, main usko converted share link mein badal dunga.")
+    await update.message.reply_text("Hello! Mujhe TeraBox link bhejo, main convert kar dunga.")
 
 async def convert_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -32,9 +32,9 @@ async def convert_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Kripya valid TeraBox link bhejein.")
 
 if __name__ == '__main__':
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, convert_link))
-    app.run_polling()
+    bot_app = ApplicationBuilder().token(TOKEN).build()
+    bot_app.add_handler(CommandHandler("start", start))
+    bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, convert_link))
+    bot_app.run_polling()
     
     
