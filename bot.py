@@ -1,7 +1,5 @@
 import os
-import re
 import threading
-import requests
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
@@ -20,53 +18,27 @@ threading.Thread(target=run_flask, daemon=True).start()
 
 TOKEN = os.environ.get("BOT_TOKEN")
 
-def create_telegraph_page(title, links_list):
-    content_html = ""
-    for idx, link in enumerate(links_list, 1):
-        content_html += f'<li><a href="{link}">▶️ Watch / Download Video Option {idx}</a></li>\n'
-    
-    html_content = f'''
-    <h3>🎬 Exclusive Media Collection</h3>
-    <p>Select your preferred video link below to stream or download:</p>
-    <ul>
-        {content_html}
-    </ul>
-    <p><i>Note: If one link doesn't open, try another mirror link above.</i></p>
-    '''
-    
-    try:
-        response = requests.post(
-            "https://api.telegra.ph/createPage",
-            json={
-                "access_token": "d3b25feccb89e508a9114afb82aa421fe2a9712b963b387cc5ad71e596d2",
-                "title": title,
-                "content": [{"tag": "p", "children": [html_content]}],
-                "return_content": False
-            },
-            timeout=15
-        )
-        res_data = response.json()
-        if res_data.get("ok"):
-            url = res_data["result"]["url"]
-            return url.replace("telegra.ph", "graph.org")
-    except Exception as e:
-        print(f"Telegraph API Error: {e}")
-        
-    return links_list[0] if links_list else ""
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hello! Mujhe TeraBox links bhejo, main Graph.org landing page bana dunga.")
+    await update.message.reply_text(
+        "👋 **Welcome Boss!**\n\n"
+        "Aap official @telegraph bot par jaakar apna page (photos + links) manually bana lijiye.\n\n"
+        "Phir wahan ka link mujhe bhej dijiye. Main usko Graph.org me convert karke aapke Channel ke liye ek Professional Post aur Button bana dunga! 🚀"
+    )
 
-async def convert_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    # Sabhi URLs ko properly extract karna
-    urls = re.findall(r'(https?://[^\s]+)', text)
+# Private Channel Join Request Auto-Approver
+async def auto_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        await update.chat_join_request.approve()
+    except Exception as e:
+        print(f"Approval Error: {e}")
+
+async def generate_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
     
-    if urls:
-        # Loading message bhejna taaki user ko pata chale bot kaam kar raha hai
-        sent_msg = await update.message.reply_text("⏳ Generating Graph.org landing page for your links...")
-        
-        landing_page = create_telegraph_page("NEW EXCLUSIVE POST", urls)
+    # Check if user sent a link
+    if text.startswith("http://") or text.startswith("https://"):
+        # Auto convert telegra.ph to graph.org
+        landing_page = text.replace("telegra.ph", "graph.org")
         
         post_text = (
             "🔥 **NEW POST UPLOADED** 🔥\n\n"
@@ -83,24 +55,23 @@ async def convert_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🚀 WATCH / DOWNLOAD NOW 🚀", url=landing_page)]
         ])
         
-        # Purana loading message delete karke final preview dena
-        await sent_msg.delete()
-        
         await update.message.reply_text(
-            f"✅ **Graph.org Landing Page Ready!**\n\n"
-            f"📌 **Total Links Included:** {len(urls)}\n"
-            f"🔗 **Generated Link:**\n{landing_page}\n\n"
-            f"👇 **Niche Aapki Channel Post Ka Preview Hai:**",
+            "✅ **Aapki Channel Post Ready Hai!** 👇\n"
+            "Niche diye gaye message ko copy ya forward karke apne channel me daal lijiye.",
             parse_mode="Markdown"
         )
         
         await update.message.reply_text(post_text, reply_markup=keyboard, parse_mode="Markdown")
     else:
-        await update.message.reply_text("Kripya valid TeraBox/TeraShare link(s) bhejein.")
+        await update.message.reply_text("⚠️ Kripya mujhe sirf apna banaya hua Telegraph ya Graph.org link bhejein.")
 
 if __name__ == '__main__':
     bot_app = ApplicationBuilder().token(TOKEN).build()
+    
+    # Handlers
     bot_app.add_handler(CommandHandler("start", start))
-    bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, convert_link))
+    bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, generate_post))
+    bot_app.add_handler(MessageHandler(filters.StatusUpdate.CHAT_JOIN_REQUEST, auto_approve))
+    
     bot_app.run_polling()
     
